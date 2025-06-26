@@ -12,6 +12,32 @@ This is the code for CogACT: A Foundational Vision-Language-Action Model for Syn
  * [**Evaluation in SIMPLER**](#evaluation-in-simpler)
  * [**Deployment in The Real World**](#deployment-in-the-real-world)
  * [**Inference Speed**](#inference-speed)
+
+## Run finetune pipeline 
+
+Task: finetune the model based on the given finetune_dataset with mock random data.
+### Todo ###
+
+- set up Dockerfile
+- modify `training/dataset_finetune.py` to generate mock data
+- modify `scripts/train.py` to get new training dataset 
+
+```commandline
+git clone https://LXZgogoDuck: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@github.com/LXZgogoDuck/CogACT_finetune.git
+```
+```commandline
+docker run --gpus all --rm --network host --ipc=host \
+  -v /users/vis24xl/xuanzhuo:/workspace \
+  -v /data/auriga:/mnt/auriga \
+  --entrypoint "" \
+  -it cog /bin/bash
+```
+```commandline
+conda init
+source ~/.bashrc
+conda activate cogact   
+```
+
 ## Installation
 The code is built using Python 3.10, and can be run under any environment with Python 3.8 and above. We require PyTorch >= 2.2.0 and CUDA >= 12.0 (It may run with lower versions, but we have not tested it).
 
@@ -252,16 +278,5 @@ We also deploy OpenVLA in bfloat16 format on the same device for comparison, tes
 
 As shown in the table, our method has a faster inference speed because we use a single cognition token to generate an entire action sequence. In contrast, an OpenVLA-style model needs to generate 7 tokens to represent a 7-dimensional action. Even when considering the time taken for our DiT inference, our model still achieves a significant speedup compared to OpenVLA. Additionally, our approach can utilize action chunking to generate multiple actions in a single inference.
 
-## Run finetune pipeline 
 
-Task: finetune the model based on the given finetune_dataset with mock random data.
-### Todo ###
-
-- set up Dockerfile
-- modify `training/dataset_finetune.py` to generate mock data
-- modify `scripts/train.py` to get new training dataset 
-
-```commandline
-git clone https://LXZgogoDuck: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@github.com/LXZgogoDuck/CogACT_finetune.git
-```
 

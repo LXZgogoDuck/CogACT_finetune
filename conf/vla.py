@@ -60,6 +60,39 @@ class VLAConfig(ChoiceRegistry):
 # === OpenVLA Training Configurations ===
 
 
+@dataclass
+class Exp_Custom_Finetune(VLAConfig):
+    vla_id: str = "custom-finetune"
+    base_vlm: Union[str, Path] = "prism-dinosiglip-224px+7b"  # or whatever VLM you're using
+
+    freeze_vision_backbone: bool = False
+    freeze_llm_backbone: bool = False
+    unfreeze_last_llm_layer: bool = False
+
+    # Data Mixture Parameters
+    data_mix: str = "custom_finetune"
+    shuffle_buffer_size: int = 100_000
+
+    # Optimization Parameters
+    epochs: int = 100
+    max_steps: Optional[int] = 10000
+
+    expected_world_size: int = 1
+    global_batch_size: int = 16
+    per_device_batch_size: int = 4
+
+    learning_rate: float = 1e-4
+    weight_decay: float = 0.01
+    max_grad_norm: float = 1.0
+    lr_scheduler_type: str = "linear-warmup+cosine-decay"
+    warmup_ratio: float = 0.05
+
+    train_strategy: str = "fsdp-full-shard"
+
+    enable_gradient_checkpointing: bool = True
+    enable_mixed_precision_training: bool = True
+    reduce_in_full_precision: bool = True
+
 # = [8 GPU] Fast Iteration =>> SigLIP 224px + Bridge =
 @dataclass
 class Exp_SigLIP_224px_Bridge(VLAConfig):
@@ -118,6 +151,10 @@ class VLARegistry(Enum):
     # === CogACT-VLA Pretraining Configs ===
     EXP_COGACT_OXE_MAGIC_SOUP_PLUS_MINUS = Exp_CogACT_OXE_Magic_Soup_Plus_Minus
 
+
+    # === Custom Finetune ===
+    CUSTOM_FINETUNE = Exp_Custom_Finetune
+
     @property
     def vla_id(self) -> str:
         return self.value.vla_id
@@ -126,3 +163,5 @@ class VLARegistry(Enum):
 # Register VLAs in Choice Registry
 for vla_variant in VLARegistry:
     VLAConfig.register_subclass(vla_variant.vla_id, vla_variant.value)
+
+
