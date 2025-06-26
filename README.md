@@ -3,10 +3,6 @@
 
 
 This is the code for CogACT: A Foundational Vision-Language-Action Model for Synergizing Cognition and Action in Robotic Manipulation.
-## News
-
-- 🔥 [2024-12-23] Update new setions: [Deployment in The Real World](#deployment-in-the-real-world) and [Inference Speed](#inference-speed). It demonstrates the advantage of our approach in inference speed.
-- 🔥 [2024-12-01] Initial release.
 
 ## Contents
  * [**Installation**](#installation)
@@ -256,40 +252,16 @@ We also deploy OpenVLA in bfloat16 format on the same device for comparison, tes
 
 As shown in the table, our method has a faster inference speed because we use a single cognition token to generate an entire action sequence. In contrast, an OpenVLA-style model needs to generate 7 tokens to represent a 7-dimensional action. Even when considering the time taken for our DiT inference, our model still achieves a significant speedup compared to OpenVLA. Additionally, our approach can utilize action chunking to generate multiple actions in a single inference.
 
-## Citing
-If you find our work useful, please consider citing [our paper](https://cogact.github.io/CogACT_paper.pdf):
+## Run finetune pipeline 
 
-```bibtex
-@article{li2024cogact,
-  title={CogACT: A Foundational Vision-Language-Action Model for Synergizing Cognition and Action in Robotic Manipulation},
-  author={Li, Qixiu and Liang, Yaobo and Wang, Zeyu and Luo, Lin and Chen, Xi and Liao, Mozheng and Wei, Fangyun and Deng, Yu and Xu, Sicheng and Zhang, Yizhong and others},
-  journal={arXiv preprint arXiv:2411.19650},
-  year={2024}
-}
+Task: finetune the model based on the given finetune_dataset with mock random data.
+### Todo ###
+
+- set up Dockerfile
+- modify `training/dataset_finetune.py` to generate mock data
+- modify `scripts/train.py` to get new training dataset 
+
+```commandline
+git clone https://LXZgogoDuck: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@github.com/LXZgogoDuck/CogACT_finetune.git
 ```
 
-## Contributing
-
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
-
-When you submit a pull request, a CLA bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## Trademarks
-
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
-[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
-Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
-Any use of third-party trademarks or logos are subject to those third-party's policies.
-
-## License
-
-All the code, model weights, and data are licensed under [MIT license](./LICENSE).
