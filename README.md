@@ -16,12 +16,21 @@ This is the code for CogACT: A Foundational Vision-Language-Action Model for Syn
 ## Run finetune pipeline 
 
 Task: finetune the model based on the given finetune_dataset with mock random data.
-### Todo ###
+
+### Modification ###
 
 - set up Dockerfile
 - modify `training/dataset_finetune.py` to generate mock data
 - modify `scripts/train.py` to get new training dataset 
 
+### Debug & Result ###
+
+- `test_scripts/test_dataset_construction.py`: test the finetune_dataset construction.
+   ![result](assets/ds.png)
+
+- 
+
+### Command Line ###
 ```commandline
 git clone https://LXZgogoDuck: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@github.com/LXZgogoDuck/CogACT_finetune.git
 ```
@@ -36,6 +45,14 @@ docker run --gpus all --rm --network host --ipc=host \
 conda init
 source ~/.bashrc
 conda activate cogact   
+```
+```commandline
+export HF_TOKEN=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
+torchrun --standalone --nproc-per-node=1 scripts/train.py \
+  --vla.type custom-finetune \
+  --pretrained_checkpoint CogACT/CogACT-Base \
+  --hf_token HF_TOKEN \
+  --is_resume false
 ```
 
 ## Installation

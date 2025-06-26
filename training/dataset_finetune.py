@@ -192,19 +192,40 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
     def _generate_metadata(self, train=True, train_ratio=0.9):
 
         if self.mock_data:
-            # ---- generate one fake trajectory ----
+            #  Set random seed for reproducibility
+            np.random.seed(42)
+
+            # ---- Generate one fake trajectory with random data ----
+            num_steps = 20
+            proprio_dim = 7
+            chunk_size = 10
+
+            joint = np.random.uniform(-1, 1, size=(num_steps, proprio_dim)).astype(np.float32)
+            proprio = np.random.uniform(-1, 1, size=(num_steps, proprio_dim)).astype(np.float32)
+            action = np.random.uniform(-0.05, 0.05, size=(num_steps, proprio_dim)).astype(np.float32)
+
+            joint_chunk = np.random.uniform(-1, 1, size=(chunk_size, self.proprio_chunk_size, proprio_dim)).astype(
+                np.float32)
+            proprio_chunk = np.random.uniform(-1, 1, size=(chunk_size, self.proprio_chunk_size, proprio_dim)).astype(
+                np.float32)
+            action_chunk = np.random.uniform(-0.05, 0.05,
+                                             size=(chunk_size, self.action_chunk_size, proprio_dim)).astype(np.float32)
+
+            image_steps = np.tile(np.arange(self.proprio_chunk_size)[None, :], (chunk_size, 1))
+
             metadata = [{
-                'joint': np.zeros((20, 7), dtype=np.float32),
-                'proprio': np.zeros((20, 7), dtype=np.float32),
-                'action': np.zeros((20, 7), dtype=np.float32),
-                'joint_chunk': np.zeros((10, 8, 7), dtype=np.float32),
-                'proprio_chunk': np.zeros((10, 8, 7), dtype=np.float32),
-                'image_steps': np.tile(np.arange(8)[None, :], (10, 1)),
-                'action_chunk': np.zeros((10, self.action_chunk_size, 7), dtype=np.float32),
-                'num_steps': 10,
+                'joint': joint,
+                'proprio': proprio,
+                'action': action,
+                'joint_chunk': joint_chunk,
+                'proprio_chunk': proprio_chunk,
+                'image_steps': image_steps,
+                'action_chunk': action_chunk,
+                'num_steps': chunk_size,
                 'lang_instr': 'mock instruction',
                 'image_path': str(self.data_path),
             }]
+            return metadata
 
         else:
             traj_list = sorted([child for child in self.data_path.iterdir() \
@@ -289,20 +310,27 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
 
         return metadata
 
-
     @staticmethod
     def _normalize(input_vector, stats, method='q01q99'):
 
         vector = input_vector.copy()
 
         if method == 'minmax':
-            vector = (vector - stats['min']) / (stats['max'] - stats['min'])
+            denom = stats['max'] - stats['min']
+            denom = np.where(denom == 0, EPS, denom)
+            vector = (vector - stats['min']) / denom
             vector = (vector - 0.5) * 2
+
         elif method == 'q01q99':
-            vector = (vector - stats['q01']) / (stats['q99'] - stats['q01'])
+            denom = stats['q99'] - stats['q01']
+            denom = np.where(denom == 0, EPS, denom)
+            vector = (vector - stats['q01']) / denom
             vector = (vector - 0.5) * 2
+
         elif method == 'meanstd':
-            vector = (vector - stats['mean']) / (stats['std'] + EPS)
+            denom = stats['std']
+            denom = np.where(denom == 0, EPS, denom)
+            vector = (vector - stats['mean']) / denom
 
         return vector
 

@@ -88,7 +88,7 @@ class TrainConfig:
     # Tracking Parameters
     trackers: Tuple[str, ...] = ("jsonl", "wandb")                  # Trackers to initialize (if W&B, add config!)
     #trackers: Tuple[str, ...] = ("jsonl",)                         # Trackers to initialize (if W&B, add config!)
-    wandb_project: str = "CogACT"     # Name of W&B project to log to (use default!)
+    wandb_project: str = "OTTER"     # Name of W&B project to log to (use default!)
     wandb_entity: str = "122090346-chinese-university-of-hong-kong-shenzhen"                                         # Name of entity to log under
     repeated_diffusion_steps: int = 8                               # Repeated steps for training action model (a diffusion model)
     load_all_data_for_training: bool = True                         # Load all training data 
@@ -229,7 +229,7 @@ def train(cfg: TrainConfig) -> None:
 
     overwatch.info(f"Creating VLA Open-X Dataset with Mixture `{cfg.vla.data_mix}`")
 
-#=== start modification: 接入finetune_dataset ===#
+    #=== start modification: 接入finetune_dataset ===#
     if cfg.vla.data_mix == "custom_finetune":
         overwatch.info("Using custom FinetuneDataset.")
         config = SimpleNamespace(
