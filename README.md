@@ -112,7 +112,7 @@ Trial:
 
 reduce batch_size_per_device, reduce number of trajectories generated -> still OOM
 
-##  Set Up
+##  Experiment Set Up
 
 ```bash
 git clone https://github.com/LXZgogoDuck/CogACT_finetune.git
