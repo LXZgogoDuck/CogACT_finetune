@@ -37,6 +37,8 @@ from training import VLAMetrics, get_train_strategy
 from conf import VLAConfig, VLARegistry
 from vla import load, load_vla
 from vla import CogACT
+from transformers import AutoTokenizer
+from finetune_collator import FinetuneCollator
 
 ### Custom Dataset Injection ###
 from training.dataset_finetune import FinetuneDataset
@@ -230,7 +232,8 @@ def train(cfg: TrainConfig) -> None:
     overwatch.info(f"Creating VLA Open-X Dataset with Mixture `{cfg.vla.data_mix}`")
 
     #=== start modification: 接入finetune_dataset ===#
-    if cfg.vla.data_mix == "custom_finetune":
+    vla_id = cfg.vla.vla_id
+    if vla_id == "custom-finetune":
         overwatch.info("Using custom FinetuneDataset.")
         config = SimpleNamespace(
             proprio_type='poseulerg',
@@ -246,16 +249,21 @@ def train(cfg: TrainConfig) -> None:
             mock_data=True,
         )
 
+
         vla_dataset = FinetuneDataset(config=config, train=True)
-        collator = PaddedCollatorForActionPrediction(
-            tokenizer_model_max_length := 512,
-            tokenizer_pad_token_id := 0,
-            padding_side="right"
-        )
-        vla_dataset.dataset_statistics = {
-            "action": {"mean": [0]*7, "std": [1]*7, "min": [-1]*7, "max": [1]*7, "q01": [-1]*7, "q99": [1]*7},
-            "proprio": {"mean": [0]*7, "std": [1]*7, "min": [-1]*7, "max": [1]*7, "q01": [-1]*7, "q99": [1]*7},
-        }
+        collator = FinetuneCollator(tokenizer_name="bert-base-uncased")
+
+        print(f"Generated {len(vla_dataset.metadata)} mock trajectories")
+        for i, meta in enumerate(vla_dataset.metadata[:2]):
+            print(f"[{i}] Lang: {meta['lang_instr']}, #steps: {meta['num_steps']}")
+
+        if config.mock_data:
+            vla_dataset.dataset_statistics = {
+                "action": {"mean": [0] * 7, "std": [1] * 7, "min": [-1] * 7, "max": [1] * 7, "q01": [-1] * 7,
+                           "q99": [1] * 7},
+                "proprio": {"mean": [0] * 7, "std": [1] * 7, "min": [-1] * 7, "max": [1] * 7, "q01": [-1] * 7,
+                            "q99": [1] * 7},
+            }
 
     else:
         from prismatic.vla import get_vla_dataset_and_collator

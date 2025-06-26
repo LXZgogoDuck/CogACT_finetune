@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from torchvision.transforms import v2
 from numpy.lib.stride_tricks import sliding_window_view
 
+
 EPS = 1e-6
 
 
@@ -40,6 +41,7 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
         self.data_path = Path(config.data_path)
 
         self.mock_data = getattr(config, "mock_data", True) ## add mock_data flag for pipeline checking with mock data
+        self.mock_data_num_trajs = getattr(config, "mock_data_num_trajs", 64)
 
         spec = f's{self.proprio_type}_{self.proprio_hist_size}_{self.proprio_chunk_size}_a{self.action_type}_{self.action_chunk_size}'
 
@@ -48,27 +50,37 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
         else:
             meta_path = os.path.join(self.data_path, f'metadata_val_{spec}_v3.pkl')
 
-        if os.path.isfile(meta_path) and (not self.force_regenerate):
-            with open(meta_path, 'rb') as f:
-                self.metadata = pickle.load(f)
-        else:
-            print(f'generating {meta_path}...')
+        if self.mock_data:
+            print("[FinetuneDataset] Using mock data, skipping metadata file I/O.")
+            os.makedirs(self.data_path, exist_ok=True)
             self.metadata = self._generate_metadata(train)
+        else:
+            if os.path.isfile(meta_path) and (not self.force_regenerate):
+                with open(meta_path, 'rb') as f:
+                    self.metadata = pickle.load(f)
+            else:
+                print(f'generating {meta_path}...')
+                self.metadata = self._generate_metadata(train)
 
-            with open(meta_path, 'wb') as f:
-                pickle.dump(self.metadata, f)
+                with open(meta_path, 'wb') as f:
+                    pickle.dump(self.metadata, f)
 
         stat_path = os.path.join(self.data_path, 'dataset_statistics_train.pkl')
+
         if os.path.isfile(stat_path) and ((not self.force_regenerate) or (not train)):
             with open(stat_path, "r", encoding="utf-8") as f:
-                self.dataset_statistics = json.load(f)
+                loaded_stats = json.load(f)
         else:
             assert train, "dataset statistics can only be generated on training dataset"
-            self.dataset_statistics = self._generate_statistics(self.metadata)
-            with open(stat_path, "w", encoding="utf-8") as f:
-                json.dump(self.dataset_statistics, f, indent=4)
+            loaded_stats = self._generate_statistics(self.metadata)
+            os.makedirs(os.path.dirname(stat_path), exist_ok=True)
 
-        self.dataset_statistics = self._overwrite_statistics(self.dataset_statistics)
+            with open(stat_path, "w", encoding="utf-8") as f:
+                json.dump(loaded_stats, f, indent=4)
+
+        # Always convert stats fields to np.array regardless of mock/data mode
+        self.dataset_statistics = self._overwrite_statistics(loaded_stats)
+
         self.weights = [item['num_steps'] for item in self.metadata]
 
         if self.plot_hist:
@@ -78,7 +90,6 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
             v2.RandomResizedCrop(size=(224, 224), scale=[0.8, 1.0], ratio=[0.9, 1.1], antialias=True),
             v2.ColorJitter(brightness=0.1, contrast=[0.9, 1.1], saturation=[0.9, 1.1], hue=0.05),
         ])
-
         print(f"#trajs={len(self.weights)} #steps={sum(self.weights)} avg steps per traj={np.mean(self.weights):.1f}")
 
     def plot_hist_prop_action(self):
@@ -192,39 +203,48 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
     def _generate_metadata(self, train=True, train_ratio=0.9):
 
         if self.mock_data:
-            #  Set random seed for reproducibility
+            print(f"[FinetuneDataset] Generating {self.mock_data_num_trajs} mock trajectories")
             np.random.seed(42)
+            metadata = []
 
-            # ---- Generate one fake trajectory with random data ----
-            num_steps = 20
-            proprio_dim = 7
-            chunk_size = 10
+            for _ in range(self.mock_data_num_trajs):
+                num_steps = 20
+                proprio_dim = 7
+                chunk_size = 10
 
-            joint = np.random.uniform(-1, 1, size=(num_steps, proprio_dim)).astype(np.float32)
-            proprio = np.random.uniform(-1, 1, size=(num_steps, proprio_dim)).astype(np.float32)
-            action = np.random.uniform(-0.05, 0.05, size=(num_steps, proprio_dim)).astype(np.float32)
+                joint = np.random.uniform(-1, 1, size=(num_steps, proprio_dim)).astype(np.float32)
+                proprio = np.random.uniform(-1, 1, size=(num_steps, proprio_dim)).astype(np.float32)
+                action = np.random.uniform(-0.05, 0.05, size=(num_steps, proprio_dim)).astype(np.float32)
 
-            joint_chunk = np.random.uniform(-1, 1, size=(chunk_size, self.proprio_chunk_size, proprio_dim)).astype(
-                np.float32)
-            proprio_chunk = np.random.uniform(-1, 1, size=(chunk_size, self.proprio_chunk_size, proprio_dim)).astype(
-                np.float32)
-            action_chunk = np.random.uniform(-0.05, 0.05,
-                                             size=(chunk_size, self.action_chunk_size, proprio_dim)).astype(np.float32)
+                joint_chunk = np.random.uniform(-1, 1, size=(chunk_size, self.proprio_chunk_size, proprio_dim)).astype(
+                    np.float32)
+                proprio_chunk = np.random.uniform(-1, 1,
+                                                  size=(chunk_size, self.proprio_chunk_size, proprio_dim)).astype(
+                    np.float32)
+                action_chunk = np.random.uniform(-0.05, 0.05,
+                                                 size=(chunk_size, self.action_chunk_size, proprio_dim)).astype(
+                    np.float32)
 
-            image_steps = np.tile(np.arange(self.proprio_chunk_size)[None, :], (chunk_size, 1))
+                image_steps = np.tile(np.arange(self.proprio_chunk_size)[None, :], (chunk_size, 1))
 
-            metadata = [{
-                'joint': joint,
-                'proprio': proprio,
-                'action': action,
-                'joint_chunk': joint_chunk,
-                'proprio_chunk': proprio_chunk,
-                'image_steps': image_steps,
-                'action_chunk': action_chunk,
-                'num_steps': chunk_size,
-                'lang_instr': 'mock instruction',
-                'image_path': str(self.data_path),
-            }]
+                metadata.append({
+                    'joint': joint,
+                    'proprio': proprio,
+                    'action': action,
+                    'joint_chunk': joint_chunk,
+                    'proprio_chunk': proprio_chunk,
+                    'image_steps': image_steps,
+                    'action_chunk': action_chunk,
+                    'num_steps': chunk_size,
+                    'lang_instr': random.choice([
+                        "pick up the red block and place it on the blue one",
+                        "open the drawer using the handle",
+                        "pour the water into the cup",
+                        "move the object to the target location",
+                    ]),
+                    'image_path': str(self.data_path),
+                })
+
             return metadata
 
         else:
@@ -312,7 +332,7 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
 
     @staticmethod
     def _normalize(input_vector, stats, method='q01q99'):
-
+        stats = {k: np.array(v) for k, v in stats.items()}
         vector = input_vector.copy()
 
         if method == 'minmax':
@@ -385,15 +405,11 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
         return images
 
     def _get_data(self, sample, index):
-
         image_path = sample['image_path']
         image_steps = sample['image_steps'][index].flatten().tolist()
-
         image_primary = self._get_images(image_path, image_steps, self.image_key)
-        if self.wrist_key is None:
-            image_wrist = None
-        else:
-            image_wrist = self._get_images(image_path, image_steps, self.wrist_key)
+        image_wrist = self._get_images(image_path, image_steps, self.wrist_key) if self.wrist_key else None
+        lang_instr = sample['lang_instr']
 
         sample_dict = {
             'observation': {
@@ -403,9 +419,7 @@ class FinetuneDataset(torch.utils.data.IterableDataset):
                                            self.dataset_statistics[self.proprio_key]),
             },
             'action': self._normalize(sample['action_chunk'][index], self.dataset_statistics['action']),
-            'task': {
-                'language_instruction': sample['lang_instr'],
-            },
+            'task': {'language_instruction': lang_instr},
         }
         return sample_dict
 

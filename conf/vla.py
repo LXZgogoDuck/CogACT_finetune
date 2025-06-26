@@ -77,9 +77,10 @@ class Exp_Custom_Finetune(VLAConfig):
     epochs: int = 100
     max_steps: Optional[int] = 10000
 
-    expected_world_size: int = 1
+    expected_world_size: int = 4
     global_batch_size: int = 16
     per_device_batch_size: int = 4
+    mock_data_num_trajs: int = 64
 
     learning_rate: float = 1e-4
     weight_decay: float = 0.01
